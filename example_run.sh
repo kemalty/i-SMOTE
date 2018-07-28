@@ -1,1 +1,1 @@
-python main.py 0.1 "I-SMOTE" 1 0.001 10 100 3
+python main.py 0.1 "I-SMOTE" 1 0.001 10 100 3 1

@@ -1,24 +1,16 @@
-
+import uuid
 import numpy
 import pandas
 import random
+import argparse
 
 from mnist import MNIST
-
 from sklearn.svm import SVC
 from sklearn import metrics
 
 from smote import *
 
 DATA_DIR = "./data"
-DATA_REDUCTION_RATIO = 0.05
-EXPANSION_METHOD = "I-SMOTE"
-C = 1
-GAMMA = "auto"
-MINORITY_SIZE_TARGET = 10
-EXPANSION_RATE = 100
-K = 3
-
 
 def get_data(is_train):
 	print("Loading data...")
@@ -101,23 +93,22 @@ def main():
 	x_train, y_train = get_data(True)
 
 	# Pick the class that will be minority
-	minority_class = random.randint(0, 9)
-	print(f"Minority class is: {minority_class}")
+	print(f"Minority class is: {MINORITY_CLASS}")
 
 	# Subsample from minority class
 	print(f"Reducing minority class size to: {MINORITY_SIZE_TARGET}")
-	x_train, y_train = reduce_minority_class(x_train, y_train, minority_class, MINORITY_SIZE_TARGET) # TODO
-	assert (y_train == minority_class).sum() == MINORITY_SIZE_TARGET
+	x_train, y_train = reduce_minority_class(x_train, y_train, MINORITY_CLASS, MINORITY_SIZE_TARGET)
+	assert (y_train == MINORITY_CLASS).sum() == MINORITY_SIZE_TARGET
 
 	# Expand the minority class
 	if EXPANSION_METHOD in ["SMOTE", "I-SMOTE"]:
 		if EXPANSION_METHOD == "SMOTE":
-			x_generated = expand_with_smote(x_train, y_train, minority_class, EXPANSION_RATE, K)
+			x_generated = expand_with_smote(x_train, y_train, MINORITY_CLASS, EXPANSION_RATE, K)
 			
 		elif EXPANSION_METHOD == "I-SMOTE":
-			x_generated = expand_with_i_smote(x_train, y_train, minority_class, EXPANSION_RATE, K)
+			x_generated = expand_with_i_smote(x_train, y_train, MINORITY_CLASS, EXPANSION_RATE, K)
 		
-		y_generated = numpy.ones(x_generated.shape[0]) * minority_class
+		y_generated = numpy.ones(x_generated.shape[0]) * MINORITY_CLASS
 		x_train = numpy.append(x_train, x_generated, axis=0)
 		y_train = numpy.append(y_train, y_generated, axis=0)
 
@@ -128,7 +119,7 @@ def main():
 		raise ValueError("Unexpected Expansion Method")
 
 	# Make the problem binary
-	y_train = transform_y_to_binary(y_train, minority_class)
+	y_train = transform_y_to_binary(y_train, MINORITY_CLASS)
 
 	# Rescale features
 	x_train = rescale_x(x_train)
@@ -149,14 +140,88 @@ def main():
 	print("Predicting test...")
 	x_test = rescale_x(x_test)
 	y_hat_test = model.predict(x_test)
-	y_test = transform_y_to_binary(y_test, minority_class)
+	y_test = transform_y_to_binary(y_test, MINORITY_CLASS)
 	test_performance = get_performance(y_test, y_hat_test)
 	print(test_performance)
 	print("Done...")
 	
+	# Save results to file
+	print("Saving results...")
+	save_experiment_results(train_performance, test_performance)
+	print("Done...")
+
+def save_experiment_results(train_performance, test_performance):
+	# Bundle all experiment info together
+	save_dict = {"train_f1": train_performance["f1"],
+				 "test_f1": test_performance["f1"],
+				 "train_accuracy": train_performance["accuracy"],
+				 "test_accuracy": test_performance["accuracy"],
+				 "train_precision": train_performance["precision"],
+				 "test_precision": test_performance["precision"],
+				 "train_recall": train_performance["recall"],
+				 "test_recall": test_performance["recall"],
+				 "data_reduction_ratio": DATA_REDUCTION_RATIO,
+				 "expansion_method": EXPANSION_METHOD,
+				 "C": C,
+				 "gamma": GAMMA,
+				 "minority_size_target": MINORITY_SIZE_TARGET,
+				 "expansion_rate": EXPANSION_RATE,
+				 "K": K,
+				 "minority_class": MINORITY_CLASS,
+				 "data_reduction_ratio": DATA_REDUCTION_RATIO}
+
+	# Get save path id
+	experiment_uid = uuid.uuid4()
+	save_path = f"./experiment_out/{experiment_uid}.npy"
+	
+	numpy.save(save_path, save_dict)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_reduction_ratio", type=float, 
+    	help="Ratio of training data to be used for debugging purposes.")
+    parser.add_argument("expansion_method", type=str, choices=["I-SMOTE", "SMOTE", "NONE"],
+    	help="Method to use to expand minority class.")
+    parser.add_argument("C", type=float, help="C for SVC")
+    parser.add_argument("gamma", help="gamma for SVC")
+    parser.add_argument("minority_size_target", type=int,
+    	help="Number of instance minority class must have in experiment.")
+    parser.add_argument("expansion_rate", type=float,
+    	help="The rate of expansion minority class should have using expansion method.")
+    parser.add_argument("K", type=int, help="K for (i-)SMOTE.")
+    parser.add_argument("minority_class", type=int, 
+    	help="Class to take as minority")
+
+    args = parser.parse_args()
+
+    # Type checkers
+    assert args.data_reduction_ratio > 0 and args.data_reduction_ratio <= 1
+    assert args.minority_size_target >= 2
+    assert args.expansion_rate > 1
+    assert args.K > 1
+    assert args.K <= args.minority_size_target
+    assert args.minority_class in list(range(10))
+
+    return args
+	
 
 if __name__ == "__main__":
 	print("Script start...")
+	
+	args = parse_args()
+	
+	DATA_REDUCTION_RATIO = args.data_reduction_ratio
+	EXPANSION_METHOD = args.expansion_method
+	C = args.C
+	GAMMA = args.gamma
+	MINORITY_SIZE_TARGET = args.minority_size_target
+	EXPANSION_RATE = args.expansion_rate
+	K = args.K
+	MINORITY_CLASS = args.minority_class
+
 	main()
+
 	print("Script end...")
+
 

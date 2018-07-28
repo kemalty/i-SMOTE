@@ -8,3 +8,7 @@ Modification is very simple: just change `Synthetic[newindex][attr] = Sample[i][
 
 This modification is related to the open-set classification(https://www.wjscheirer.com/projects/openset-recognition/) as it tries to expand the boundary of a class.
 
+# Installation
+
+Install libraries: `pip install -r requirements.txt`
+
