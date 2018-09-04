@@ -1,4 +1,5 @@
 import uuid
+import copy
 import numpy
 import pandas
 import random
@@ -11,6 +12,8 @@ from sklearn import metrics
 from smote import *
 
 DATA_DIR = "./data"
+OUT_DIR = "./experiment_out"
+REPEAT = 10
 
 def get_data(is_train):
 	print("Loading data...")
@@ -86,14 +89,8 @@ def expand_with_i_smote(x, y, minority_class, expansion_rate, k):
 
 def rescale_x(x):
 	return x/255
-	
-def main():
 
-	# Get training data
-	x_train, y_train = get_data(True)
-
-	# Pick the class that will be minority
-	print(f"Minority class is: {MINORITY_CLASS}")
+def run_experiment_loop(x_train, y_train, x_test, y_test):
 
 	# Subsample from minority class
 	print(f"Reducing minority class size to: {MINORITY_SIZE_TARGET}")
@@ -135,8 +132,7 @@ def main():
 	del x_train, y_train
 	print("Done...")
 	
-	# Get test data and get test performance
-	x_test, y_test = get_data(False)
+	# Get test performance
 	print("Predicting test...")
 	x_test = rescale_x(x_test)
 	y_hat_test = model.predict(x_test)
@@ -149,6 +145,24 @@ def main():
 	print("Saving results...")
 	save_experiment_results(train_performance, test_performance)
 	print("Done...")
+
+	
+def main():
+
+	print(f"Minority class is: {MINORITY_CLASS}")
+
+	# Get data
+	x_train, y_train = get_data(True)
+	x_test, y_test = get_data(False)
+
+	# Repeat because of randomness
+	for repeat in range(REPEAT):
+		print(f"Repeat {repeat} of {REPEAT}...")
+		run_experiment_loop(copy.copy(x_train), 
+							copy.copy(y_train), 
+							copy.copy(x_test), 
+							copy.copy(y_test))
+
 
 def save_experiment_results(train_performance, test_performance):
 	# Bundle all experiment info together
@@ -172,7 +186,7 @@ def save_experiment_results(train_performance, test_performance):
 
 	# Get save path id
 	experiment_uid = uuid.uuid4()
-	save_path = f"./experiment_out/{experiment_uid}.npy"
+	save_path = f"{OUT_DIR}/{experiment_uid}.npy"
 	
 	numpy.save(save_path, save_dict)
 

@@ -2,8 +2,9 @@
 
 
 # Constant Options
-DATA_REDUCTION_RATE=0.1
+DATA_REDUCTION_RATE=1
 GAMMA=auto
+C=1.0
 
 
 # Log2 is useful in hparam search
@@ -17,31 +18,26 @@ function log2 {
 
 
 # Loop over the experiment options in parallel
-for METHOD in "SMOTE" "I-SMOTE"
+for MINORITY_SIZE_TARGET in 2 3 5 10 25 75 200
 do
-	for C in $(log2 20) $(log2 10) $(log2 5)
+	for EXPANSION_RATE in 10 50 100 250
 	do
-		for MINORITY_SIZE_TARGET in 2 3 5 10 25 75 200
+		for K in 2 5 10
 		do
-			for EXPANSION_RATE in 10 50 100 250
+			for METHOD in "SMOTE" "I-SMOTE"
 			do
-				for K in 2 5 10
-				do
-					for RANDOMNESS in {1..10}
-					do
-						if [ $MINORITY_SIZE_TARGET -ge $K ]; then
-							python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 1 &
-							python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 2 &
-							python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 8 &
-							python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 5 
-							wait
-						fi
-					done
-				done
+				if [ $MINORITY_SIZE_TARGET -ge $K ]; then
+					python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 1 &
+					python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 2 &
+					python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 8 &
+					python main.py $DATA_REDUCTION_RATE $METHOD $C $GAMMA $MINORITY_SIZE_TARGET $EXPANSION_RATE $K 5 
+					wait
+				fi
 			done
 		done
 	done
 done
+
 
 wait
 
